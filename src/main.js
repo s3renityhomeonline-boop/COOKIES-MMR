@@ -370,10 +370,37 @@ await Actor.main(async () => {
         await simulateHumanMouse(mmrPage);
         await humanDelay(1000, 2000);
 
-        console.log('✅ Human activity completed');
+        console.log('✅ Human activity completed on MMR page');
 
-        // STEP 5: Extract fresh cookies from browser context
-        console.log('\n🍪 STEP 5: Extracting fresh cookies...');
+        // STEP 5: Navigate back to Manheim homepage to trigger full cookie refresh
+        console.log('\n🔙 STEP 5: Navigating back to Manheim homepage...');
+        console.log('  → This ensures all cookies are fully refreshed across both domains');
+
+        // Use the main page (not mmrPage popup)
+        await page.goto('https://www.manheim.com/', {
+            waitUntil: 'domcontentloaded',
+            timeout: 90000
+        });
+        console.log('  ✅ Returned to Manheim homepage');
+
+        console.log('  → Waiting 3-5 seconds for cookies to settle...');
+        await humanDelay(3000, 5000);
+
+        // More human activity on homepage
+        console.log('  → Simulating human activity on homepage...');
+        await simulateHumanMouse(page);
+        await humanDelay(1000, 2000);
+
+        await simulateHumanScroll(page);
+        await humanDelay(1000, 2000);
+
+        await simulateHumanMouse(page);
+        await humanDelay(1000, 2000);
+
+        console.log('✅ Back on Manheim homepage - cookies should be fully refreshed');
+
+        // STEP 6: Extract fresh cookies from browser context
+        console.log('\n🍪 STEP 6: Extracting fresh cookies...');
 
         const allCookies = await context.cookies();
         console.log(`  → Total cookies in browser: ${allCookies.length}`);
@@ -425,8 +452,8 @@ await Actor.main(async () => {
 
         console.log('\n✅ All 4 essential cookies extracted successfully!');
 
-        // STEP 6: Prepare webhook payload
-        console.log('\n📤 STEP 6: Preparing webhook payload...');
+        // STEP 7: Prepare webhook payload
+        console.log('\n📤 STEP 7: Preparing webhook payload...');
 
         const cookieArray = [
             essentialCookies['_cl'],
@@ -467,8 +494,8 @@ await Actor.main(async () => {
         console.log('  → Cookie count: 4');
         console.log('  → Timestamp:', webhookPayload.timestamp);
 
-        // STEP 7: Send to webhook
-        console.log('\n📤 STEP 7: Sending cookies to webhook...');
+        // STEP 8: Send to webhook
+        console.log('\n📤 STEP 8: Sending cookies to webhook...');
         console.log(`  → URL: ${cookieWebhookUrl}`);
 
         const webhookResponse = await fetch(cookieWebhookUrl, {
@@ -490,12 +517,12 @@ await Actor.main(async () => {
             throw new Error(`Webhook failed with status ${webhookResponse.status}`);
         }
 
-        // STEP 8: Save cookies to Apify KV store as backup
-        console.log('\n💾 STEP 8: Saving cookies to Apify KV store (backup)...');
+        // STEP 9: Save cookies to Apify KV store as backup
+        console.log('\n💾 STEP 9: Saving cookies to Apify KV store (backup)...');
         await Actor.setValue('fresh-cookies', webhookPayload);
         console.log('  ✅ Cookies saved to key-value store');
 
-        // STEP 9: Summary
+        // STEP 10: Summary
         console.log('\n' + '='.repeat(60));
         console.log('✅ COOKIE REFRESH COMPLETED SUCCESSFULLY');
         console.log('='.repeat(60));

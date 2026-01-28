@@ -11,7 +11,7 @@
 | **Purpose** | Extract fresh cookies daily | Scrape MMR values for VINs |
 | **Input** | Yesterday's cookies | Fresh cookies + Supabase URL |
 | **Output** | Fresh cookies → webhook | MMR data → webhook |
-| **Duration** | ~30-60 seconds | ~5-10 minutes (100 VINs) |
+| **Duration** | ~42-69 seconds | ~5-10 minutes (100 VINs) |
 | **Schedule** | Daily at 3 AM | Daily at 4 AM |
 | **Dependencies** | None | Needs fresh cookies |
 | **VIN Processing** | No | Yes (loops through VINs) |
@@ -147,12 +147,14 @@
 
 ### Cookie Refresher
 ```
-Total: ~30-60 seconds
+Total: ~42-69 seconds (under 90 seconds)
 
 Breakdown:
 - Navigate to Manheim:      ~10-15s
 - Human activity:           ~5-10s
 - Navigate to MMR:          ~10-15s
+- Navigate back to Manheim: ~10-15s
+- Final human activity:     ~5-10s
 - Extract cookies:          ~1-2s
 - Send webhook:             ~1-2s
 ```
