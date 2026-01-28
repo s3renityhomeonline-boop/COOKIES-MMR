@@ -1,0 +1,44 @@
+{
+  "manheimCookies": [
+    {
+      "name": "_cl",
+      "value": "YOUR_CL_COOKIE_VALUE",
+      "domain": ".manheim.com",
+      "path": "/",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "SESSION",
+      "value": "YOUR_SESSION_COOKIE_VALUE",
+      "domain": ".manheim.com",
+      "path": "/",
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session",
+      "value": "YOUR_SESSION_COOKIE_VALUE",
+      "domain": "mcom-header-footer.manheim.com",
+      "path": "/",
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "session.sig",
+      "value": "YOUR_SESSION_SIG_VALUE",
+      "domain": "mcom-header-footer.manheim.com",
+      "path": "/",
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
+  "cookieWebhookUrl": "https://n8n-production-0d7d.up.railway.app/webhook/mmrcookies",
+  "proxyConfiguration": {
+    "useApifyProxy": false
+  }
+}
