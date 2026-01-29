@@ -11,14 +11,15 @@
 3. **Navigates to Manheim** homepage
 4. **Opens MMR tool** to trigger cookie refresh
 5. **Navigates back to Manheim homepage** (ensures full cookie refresh across domains)
-6. **Simulates human activity** (mouse movements, scrolling, delays)
-7. **Extracts 4 fresh cookies**:
+6. **Hard refresh (Ctrl+F5)** to force server to issue fresh cookies
+7. **Simulates human activity** (mouse movements, scrolling, delays)
+8. **Extracts 4 fresh cookies**:
    - `_cl` from `.manheim.com`
    - `SESSION` from `.manheim.com`
    - `session` from `mcom-header-footer.manheim.com`
    - `session.sig` from `mcom-header-footer.manheim.com`
-8. **Sends cookies to webhook** (n8n)
-9. **Saves backup** to Apify key-value store
+9. **Sends cookies to webhook** (n8n)
+10. **Saves backup** to Apify key-value store
 
 ---
 
@@ -335,10 +336,11 @@ MMR VIN Scraper:
 - Human activity simulation: ~5-10 seconds
 - Access MMR tool: ~10-15 seconds
 - Navigate back to Manheim: ~10-15 seconds
+- Hard refresh page: ~5-10 seconds
 - Final human activity: ~5-10 seconds
 - Cookie extraction: ~1-2 seconds
 - Webhook delivery: ~1-2 seconds
-- **Total: ~42-69 seconds (under 90 seconds)**
+- **Total: ~47-79 seconds (under 90 seconds)**
 
 ---
 

@@ -386,6 +386,14 @@ await Actor.main(async () => {
         console.log('  → Waiting 3-5 seconds for cookies to settle...');
         await humanDelay(3000, 5000);
 
+        // Hard refresh to force server to issue fresh cookies
+        console.log('  → Performing hard refresh (Ctrl+F5) to get fresh cookies...');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        console.log('  ✅ Hard refresh completed');
+
+        console.log('  → Waiting 3-5 seconds after refresh...');
+        await humanDelay(3000, 5000);
+
         // More human activity on homepage
         console.log('  → Simulating human activity on homepage...');
         await simulateHumanMouse(page);
