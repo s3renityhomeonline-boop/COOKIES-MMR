@@ -202,9 +202,9 @@ await Actor.main(async () => {
     try {
         // STEP 1: Visit Manheim homepage to trigger session refresh
         console.log('\n🌐 STEP 1: Visiting Manheim homepage...');
-        console.log('  → Navigating to: https://www.manheim.com/');
+        console.log('  → Navigating to: https://site.manheim.com/');
 
-        await page.goto('https://www.manheim.com/', {
+        await page.goto('https://site.manheim.com/', {
             waitUntil: 'domcontentloaded',
             timeout: 90000
         });
@@ -290,7 +290,7 @@ await Actor.main(async () => {
             return null;
         });
 
-        if (buttonPosition) {
+        if (buttonPosition && buttonPosition.width > 0 && buttonPosition.height > 0) {
             console.log(`  ✅ Button found at: (${Math.round(buttonPosition.x)}, ${Math.round(buttonPosition.y)})`);
             console.log(`     Size: ${Math.round(buttonPosition.width)}x${Math.round(buttonPosition.height)}`);
             console.log(`     Selector used: ${buttonPosition.selector}`);
@@ -425,7 +425,7 @@ await Actor.main(async () => {
         console.log('  → This ensures all cookies are fully refreshed across both domains');
 
         // Use the main page (not mmrPage popup)
-        await page.goto('https://www.manheim.com/', {
+        await page.goto('https://site.manheim.com/', {
             waitUntil: 'domcontentloaded',
             timeout: 90000
         });
