@@ -8,20 +8,21 @@
 
 1. **Loads yesterday's cookies** from Apify input
 2. **Injects cookies** into browser session
-3. **Navigates to Manheim** homepage (https://site.manheim.com/)
-4. **Waits for MMR button** to be visible (header hydration)
-5. **Extracts MMR URL** from button (preserves SSO params)
-6. **Navigates to MMR tool** using extracted URL
-7. **Navigates back to Manheim homepage** (ensures full cookie refresh)
-8. **Hard refresh (Ctrl+F5)** to force server to issue fresh cookies
-9. **Simulates human activity** (mouse movements, scrolling, delays)
-10. **Extracts 4 fresh cookies**:
+3. **Navigates to site.manheim.com** (marketing site)
+4. **Clicks "LEARN MORE" button** to trigger JS events
+5. **Opens MMR tool** via URL redirect
+6. **Clicks VIN input field** on MMR tool (triggers more events)
+7. **Uses browser back button** to return (mimics manual process)
+8. **Checks if cookies changed** vs input cookies
+9. **Performs up to 3 hard refreshes** if cookies unchanged
+10. **Simulates human activity** (mouse movements, scrolling, delays)
+11. **Extracts 4 fresh cookies**:
    - `_cl` from `.manheim.com`
    - `SESSION` from `.manheim.com`
    - `session` from `mcom-header-footer.manheim.com`
    - `session.sig` from `mcom-header-footer.manheim.com`
-11. **Sends cookies to webhook** (n8n)
-12. **Saves backup** to Apify key-value store
+12. **Sends cookies to webhook** (n8n)
+13. **Saves backup** to Apify key-value store
 
 ---
 
@@ -334,15 +335,18 @@ MMR VIN Scraper:
 - **Frequency:** Daily (or as needed)
 
 **Timing Breakdown:**
-- Navigate to Manheim homepage: ~10-15 seconds
-- Human activity simulation: ~5-10 seconds
-- Access MMR tool: ~10-15 seconds
-- Navigate back to Manheim: ~10-15 seconds
-- Hard refresh page: ~5-10 seconds
+- Navigate to site.manheim.com: ~10-15 seconds
+- Human activity + click button: ~5-10 seconds
+- Navigate to "LEARN MORE" page: ~3-5 seconds
+- Go back: ~2-3 seconds
+- Open MMR tool via URL: ~10-15 seconds
+- Human activity + click VIN input: ~5-10 seconds
+- Browser back button: ~3-5 seconds
+- Check cookies + hard refresh (0-3x): ~0-45 seconds
 - Final human activity: ~5-10 seconds
 - Cookie extraction: ~1-2 seconds
 - Webhook delivery: ~1-2 seconds
-- **Total: ~47-79 seconds (under 90 seconds)**
+- **Total: ~45-122 seconds (worst case with 3 refreshes)**
 
 ---
 

@@ -200,8 +200,8 @@ await Actor.main(async () => {
     const page = await context.newPage();
 
     try {
-        // STEP 1: Visit Manheim homepage to trigger session refresh
-        console.log('\n🌐 STEP 1: Visiting Manheim homepage...');
+        // STEP 1: Visit Manheim site homepage to trigger session refresh
+        console.log('\n🌐 STEP 1: Visiting Manheim site homepage...');
         console.log('  → Navigating to: https://site.manheim.com/');
 
         await page.goto('https://site.manheim.com/', {
@@ -244,54 +244,119 @@ await Actor.main(async () => {
 
         console.log('✅ Human activity simulated');
 
-        // STEP 3: Access MMR tool (SMART APPROACH - Extract href and navigate)
-        console.log('\n📊 STEP 3: Accessing MMR tool...');
-
-        // Scroll to top to ensure header is visible
-        console.log('  → Scrolling to top to reveal header...');
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await humanDelay(2000, 3000);
-
-        // Wait for header to be fully hydrated (client-side rendered)
-        console.log('  → Waiting for MMR button to be visible (header hydration)...');
+        // STEP 2.5: Click "LEARN MORE" button to trigger JS events
+        console.log('\n🔘 STEP 2.5: Clicking "LEARN MORE" button...');
         try {
-            await page.waitForSelector('a[data-test-id="mmr-btn"]', {
-                state: 'visible',
-                timeout: 30000  // 30 seconds for header to hydrate
-            });
-            console.log('  ✅ MMR button is visible and hydrated');
+            const learnMoreButton = page.locator('a[href*="/solutions/buyer-solution"]').first();
+            await learnMoreButton.click({ timeout: 5000 });
+            console.log('  ✅ "LEARN MORE" button clicked');
+            await humanDelay(2000, 3000);
+
+            // Go back to homepage
+            console.log('  → Navigating back to homepage...');
+            await page.goBack({ waitUntil: 'domcontentloaded' });
+            console.log('  ✅ Back on homepage');
+            await humanDelay(1000, 2000);
         } catch (error) {
-            console.log('  ⚠️ MMR button not visible after 30s, taking screenshot...');
-            const screenshot = await page.screenshot({ fullPage: false });
-            await Actor.setValue('mmr-button-not-found', screenshot, { contentType: 'image/png' });
-            throw new Error('MMR button not found - auth state may not be recognized');
+            console.log(`  ⚠️ Could not click "LEARN MORE" button: ${error.message}`);
+            console.log('  → Continuing without button click...');
         }
 
-        // Extract the MMR button's href (preserves SSO params)
-        console.log('  → Extracting MMR URL from button...');
-        const mmrUrl = await page.evaluate(() => {
-            const button = document.querySelector('a[data-test-id="mmr-btn"]');
-            return button ? button.href : null;
-        });
-
-        if (!mmrUrl) {
-            throw new Error('Could not extract MMR URL from button');
-        }
-
-        console.log(`  ✅ MMR URL extracted: ${mmrUrl}`);
-
-        // Simulate human activity before navigation
+        // STEP 3: Access MMR tool to ensure full cookie refresh
+        console.log('\n📊 STEP 3: Accessing MMR tool to refresh cookies...');
+        console.log('  → Simulating mouse movement...');
         await simulateHumanMouse(page);
         await humanDelay(1000, 2000);
 
-        // Navigate to MMR URL (preserves auth, avoids popup handling)
-        console.log('  → Navigating to MMR tool...');
-        const mmrPage = page; // Use same tab
-        await mmrPage.goto(mmrUrl, {
-            waitUntil: 'networkidle',
-            timeout: 60000
-        });
-        console.log(`  ✅ MMR tool loaded: ${mmrPage.url()}`);
+        let mmrPage = null;
+
+        // Try clicking button first (human-like behavior)
+        try {
+            console.log('  → Checking for iframes...');
+            const frames = page.frames();
+            console.log(`  → Found ${frames.length} frames`);
+
+            // Look for header iframe
+            let headerFrame = null;
+            for (const frame of frames) {
+                const url = frame.url();
+                console.log(`  → Frame URL: ${url}`);
+                if (url.includes('mcom-header-footer')) {
+                    headerFrame = frame;
+                    console.log('  ✅ Found header/footer iframe!');
+                    break;
+                }
+            }
+
+            // Decide where to click based on iframe detection
+            let clickTarget;
+            if (headerFrame) {
+                console.log('  → Attempting to click MMR button inside iframe...');
+                clickTarget = headerFrame.locator('[data-test-id="mmr-btn"]').first();
+            } else {
+                console.log('  → Attempting to click MMR button on main page...');
+                clickTarget = page.locator('[data-test-id="mmr-btn"]').first();
+            }
+
+            // Wait for button to be visible
+            await clickTarget.waitFor({ state: 'visible', timeout: 10000 });
+            console.log('  ✅ MMR button is visible');
+
+            // Set up BOTH popup AND navigation listeners (race condition)
+            const popupPromise = context.waitForEvent('page', {
+                predicate: (p) => p.url().includes('mmr.manheim.com'),
+                timeout: 10000
+            }).catch(() => null);
+
+            const navigationPromise = page.waitForNavigation({
+                url: /mmr\.manheim\.com/,
+                waitUntil: 'domcontentloaded',
+                timeout: 10000
+            }).catch(() => null);
+
+            // Click button with hover first (more human-like)
+            await clickTarget.hover();
+            await humanDelay(300, 600);
+            await clickTarget.click({ timeout: 10000 });
+            console.log('  ✅ MMR button clicked');
+
+            // Wait for EITHER popup OR same-tab navigation
+            console.log('  → Waiting for MMR tool to open (popup or navigation)...');
+            const result = await Promise.race([popupPromise, navigationPromise]);
+
+            // Check if we got a new popup page (has url() method) or same-tab navigation
+            if (result && typeof result.url === 'function') {
+                // New popup opened
+                mmrPage = result;
+                console.log(`  ✅ Popup opened successfully: ${mmrPage.url()}`);
+            } else {
+                // Same-tab navigation occurred (or both timed out, but page might have navigated)
+                mmrPage = page;
+                console.log(`  ✅ Navigated in same tab: ${mmrPage.url()}`);
+            }
+
+        } catch (error) {
+            console.log(`  ⚠️ Button/popup approach failed: ${error.message}`);
+            console.log('  → Fallback: Opening MMR tool directly...');
+
+            // Fallback: Navigate directly to MMR tool
+            mmrPage = await context.newPage();
+            await mmrPage.goto('https://mmr.manheim.com/ui-mmr/?country=US&popup=true&source=man', {
+                waitUntil: 'domcontentloaded',
+                timeout: 30000
+            });
+            console.log('  ✅ MMR tool loaded via direct navigation');
+        }
+
+        // Verify we have MMR page
+        if (!mmrPage) {
+            console.error('\n❌ Failed to open MMR tool!');
+            const screenshot = await page.screenshot({ fullPage: false });
+            await Actor.setValue('mmr-failed-screenshot', screenshot, { contentType: 'image/png' });
+            throw new Error('Could not access MMR tool - both button click and direct navigation failed');
+        }
+
+        console.log(`✅ MMR page ready: ${mmrPage.url()}`);
 
         // Wait for page to fully load
         console.log('  → Waiting for page to load...');
@@ -325,27 +390,82 @@ await Actor.main(async () => {
 
         console.log('✅ Human activity completed on MMR page');
 
-        // STEP 5: Navigate back to Manheim homepage to trigger full cookie refresh
-        console.log('\n🔙 STEP 5: Navigating back to Manheim homepage...');
-        console.log('  → This ensures all cookies are fully refreshed across both domains');
+        // STEP 4.5: Click VIN input to trigger JS events
+        console.log('\n🔘 STEP 4.5: Clicking VIN input field...');
+        try {
+            await mmrPage.click('#vinText', { timeout: 5000 });
+            console.log('  ✅ VIN input field clicked');
+            await humanDelay(1000, 2000);
+        } catch (error) {
+            console.log(`  ⚠️ Could not click VIN input: ${error.message}`);
+            console.log('  → Continuing without button click...');
+        }
 
-        // Use the main page (not mmrPage popup)
-        await page.goto('https://site.manheim.com/', {
-            waitUntil: 'domcontentloaded',
-            timeout: 90000
-        });
-        console.log('  ✅ Returned to Manheim homepage');
+        // STEP 5: Navigate back using browser back button (like manual process)
+        console.log('\n🔙 STEP 5: Using browser back button to return...');
+        console.log('  → This mimics the manual cookie extraction process');
+
+        // Use browser back button (like manual process)
+        await page.goBack({ waitUntil: 'domcontentloaded' });
+        console.log('  ✅ Returned to previous page using back button');
 
         console.log('  → Waiting 3-5 seconds for cookies to settle...');
         await humanDelay(3000, 5000);
 
-        // Hard refresh to force server to issue fresh cookies
-        console.log('  → Performing hard refresh (Ctrl+F5) to get fresh cookies...');
-        await page.reload({ waitUntil: 'domcontentloaded' });
-        console.log('  ✅ Hard refresh completed');
+        // STEP 5.5: Check if cookies changed, if not perform max 3 hard refreshes
+        console.log('\n🔄 STEP 5.5: Checking if cookies changed...');
 
-        console.log('  → Waiting 3-5 seconds after refresh...');
-        await humanDelay(3000, 5000);
+        // Helper function to check if cookies changed
+        const checkCookiesChanged = (currentCookies, inputCookies) => {
+            const inputCL = inputCookies.find(c => c.name === '_cl')?.value;
+            const inputSESSION = inputCookies.find(c => c.name === 'SESSION')?.value;
+            const inputSig = inputCookies.find(c => c.name === 'session.sig')?.value;
+
+            const currentCL = currentCookies.find(c => c.name === '_cl' && c.domain === '.manheim.com')?.value;
+            const currentSESSION = currentCookies.find(c => c.name === 'SESSION' && c.domain === '.manheim.com')?.value;
+            const currentSig = currentCookies.find(c => c.name === 'session.sig' && c.domain === 'mcom-header-footer.manheim.com')?.value;
+
+            return (
+                currentCL !== inputCL ||
+                currentSESSION !== inputSESSION ||
+                currentSig !== inputSig
+            );
+        };
+
+        let attempts = 0;
+        const maxAttempts = 3;
+        let cookiesChanged = false;
+
+        // Initial check
+        let currentCookies = await context.cookies();
+        cookiesChanged = checkCookiesChanged(currentCookies, manheimCookies);
+
+        if (cookiesChanged) {
+            console.log('  ✅ Cookies have changed! Fresh cookies detected.');
+        } else {
+            console.log('  ⚠️ Cookies unchanged, performing hard refreshes...');
+
+            while (attempts < maxAttempts && !cookiesChanged) {
+                attempts++;
+                console.log(`  → Attempt ${attempts}/${maxAttempts}: Performing hard refresh...`);
+
+                await page.reload({ waitUntil: 'domcontentloaded' });
+                await humanDelay(3000, 5000);
+
+                currentCookies = await context.cookies();
+                cookiesChanged = checkCookiesChanged(currentCookies, manheimCookies);
+
+                if (cookiesChanged) {
+                    console.log(`  ✅ Cookies changed after ${attempts} refresh(es)!`);
+                    break;
+                }
+            }
+
+            if (!cookiesChanged) {
+                console.log(`  ⚠️ Warning: Cookies did not change after ${maxAttempts} refreshes`);
+                console.log('  → Sending current cookies anyway (they may still be valid)');
+            }
+        }
 
         // More human activity on homepage
         console.log('  → Simulating human activity on homepage...');
