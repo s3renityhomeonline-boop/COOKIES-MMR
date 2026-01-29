@@ -244,149 +244,54 @@ await Actor.main(async () => {
 
         console.log('✅ Human activity simulated');
 
-        // STEP 3: Click MMR button by coordinates (SMART APPROACH)
-        console.log('\n📊 STEP 3: Clicking MMR button by coordinates...');
-
-        // Wait longer for page to recognize auth state
-        console.log('  → Waiting 6-9 seconds for auth state to be recognized...');
-        await humanDelay(6000, 9000);
+        // STEP 3: Access MMR tool (SMART APPROACH - Extract href and navigate)
+        console.log('\n📊 STEP 3: Accessing MMR tool...');
 
         // Scroll to top to ensure header is visible
         console.log('  → Scrolling to top to reveal header...');
         await page.evaluate(() => window.scrollTo(0, 0));
         await humanDelay(2000, 3000);
 
-        // Simulate some mouse movement first
+        // Wait for header to be fully hydrated (client-side rendered)
+        console.log('  → Waiting for MMR button to be visible (header hydration)...');
+        try {
+            await page.waitForSelector('a[data-test-id="mmr-btn"]', {
+                state: 'visible',
+                timeout: 30000  // 30 seconds for header to hydrate
+            });
+            console.log('  ✅ MMR button is visible and hydrated');
+        } catch (error) {
+            console.log('  ⚠️ MMR button not visible after 30s, taking screenshot...');
+            const screenshot = await page.screenshot({ fullPage: false });
+            await Actor.setValue('mmr-button-not-found', screenshot, { contentType: 'image/png' });
+            throw new Error('MMR button not found - auth state may not be recognized');
+        }
+
+        // Extract the MMR button's href (preserves SSO params)
+        console.log('  → Extracting MMR URL from button...');
+        const mmrUrl = await page.evaluate(() => {
+            const button = document.querySelector('a[data-test-id="mmr-btn"]');
+            return button ? button.href : null;
+        });
+
+        if (!mmrUrl) {
+            throw new Error('Could not extract MMR URL from button');
+        }
+
+        console.log(`  ✅ MMR URL extracted: ${mmrUrl}`);
+
+        // Simulate human activity before navigation
         await simulateHumanMouse(page);
         await humanDelay(1000, 2000);
 
-        let mmrPage = null;
-        let clickSuccess = false;
-
-        // Get MMR button position from DOM
-        console.log('  → Finding MMR button position...');
-        const buttonPosition = await page.evaluate(() => {
-            // Try multiple selectors to find the button
-            const selectors = [
-                '[data-test-id="mmr-btn"]',
-                'a[href*="mmr.manheim.com"][target="_blank"]',
-                '.uhf-mmr.auth a',
-                'a.uhf-link.btn.btn-outline[href*="mmr.manheim.com"]'
-            ];
-
-            for (const selector of selectors) {
-                const button = document.querySelector(selector);
-                if (button) {
-                    const rect = button.getBoundingClientRect();
-                    return {
-                        x: rect.left + rect.width / 2,  // Center X
-                        y: rect.top + rect.height / 2,  // Center Y
-                        width: rect.width,
-                        height: rect.height,
-                        selector: selector
-                    };
-                }
-            }
-            return null;
+        // Navigate to MMR URL (preserves auth, avoids popup handling)
+        console.log('  → Navigating to MMR tool...');
+        const mmrPage = page; // Use same tab
+        await mmrPage.goto(mmrUrl, {
+            waitUntil: 'networkidle',
+            timeout: 60000
         });
-
-        if (buttonPosition && buttonPosition.width > 0 && buttonPosition.height > 0) {
-            console.log(`  ✅ Button found at: (${Math.round(buttonPosition.x)}, ${Math.round(buttonPosition.y)})`);
-            console.log(`     Size: ${Math.round(buttonPosition.width)}x${Math.round(buttonPosition.height)}`);
-            console.log(`     Selector used: ${buttonPosition.selector}`);
-
-            // Set up popup listener (target="_blank" opens new window)
-            const popupPromise = context.waitForEvent('page', {
-                predicate: (p) => p.url().includes('mmr.manheim.com'),
-                timeout: 15000
-            }).catch(() => null);
-
-            const navigationPromise = page.waitForNavigation({
-                url: /mmr\.manheim\.com/,
-                waitUntil: 'domcontentloaded',
-                timeout: 15000
-            }).catch(() => null);
-
-            // Move mouse to button center (human-like with steps)
-            console.log('  → Moving mouse to MMR button...');
-            await page.mouse.move(buttonPosition.x, buttonPosition.y, { steps: 10 });
-            await humanDelay(500, 1000);
-
-            // Click at those exact coordinates
-            console.log('  → Clicking at button coordinates...');
-            await page.mouse.click(buttonPosition.x, buttonPosition.y);
-            console.log('  ✅ Clicked MMR button by coordinates');
-
-            // Wait for popup or navigation
-            console.log('  → Waiting for MMR tool to open...');
-            const result = await Promise.race([popupPromise, navigationPromise]);
-
-            if (result && typeof result.url === 'function') {
-                // New popup opened
-                mmrPage = result;
-                console.log(`  ✅ Popup opened: ${mmrPage.url()}`);
-                clickSuccess = true;
-            } else if (page.url().includes('mmr.manheim.com')) {
-                // Same-tab navigation
-                mmrPage = page;
-                console.log(`  ✅ Navigated in same tab: ${mmrPage.url()}`);
-                clickSuccess = true;
-            } else {
-                console.log(`  ⚠️ Click executed but MMR tool didn't open`);
-            }
-
-        } else {
-            console.log('  ⚠️ Could not find MMR button position in DOM');
-            console.log('  → Trying fallback: click top-right corner area');
-
-            // Fallback: Click top-right corner where MMR button usually is
-            const viewport = page.viewportSize();
-            const clickX = viewport.width - 70; // 70px from right edge
-            const clickY = 50; // 50px from top
-
-            console.log(`  → Clicking top-right area: (${clickX}, ${clickY})`);
-
-            const popupPromise = context.waitForEvent('page', {
-                predicate: (p) => p.url().includes('mmr.manheim.com'),
-                timeout: 15000
-            }).catch(() => null);
-
-            await page.mouse.move(clickX, clickY, { steps: 10 });
-            await humanDelay(500, 1000);
-            await page.mouse.click(clickX, clickY);
-            console.log('  ✅ Clicked top-right area');
-
-            const result = await popupPromise;
-            if (result) {
-                mmrPage = result;
-                console.log(`  ✅ Popup opened: ${mmrPage.url()}`);
-                clickSuccess = true;
-            }
-        }
-
-        // Last resort: Direct navigation (ONLY if coordinate clicking failed)
-        if (!clickSuccess) {
-            console.log('  ⚠️ Coordinate clicking failed');
-            console.log('  → Last resort: Opening MMR tool directly...');
-            console.log('  ⚠️ WARNING: Direct navigation may not trigger cookie refresh!');
-
-            mmrPage = await context.newPage();
-            await mmrPage.goto('https://mmr.manheim.com/ui-mmr/?country=US&popup=true&source=man', {
-                waitUntil: 'domcontentloaded',
-                timeout: 30000
-            });
-            console.log('  ✅ MMR tool loaded via direct navigation');
-        }
-
-        // Verify we have MMR page
-        if (!mmrPage) {
-            console.error('\n❌ Failed to open MMR tool!');
-            const screenshot = await page.screenshot({ fullPage: false });
-            await Actor.setValue('mmr-failed-screenshot', screenshot, { contentType: 'image/png' });
-            throw new Error('Could not access MMR tool - all methods failed');
-        }
-
-        console.log(`✅ MMR page ready: ${mmrPage.url()}`);
+        console.log(`  ✅ MMR tool loaded: ${mmrPage.url()}`);
 
         // Wait for page to fully load
         console.log('  → Waiting for page to load...');

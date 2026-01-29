@@ -8,18 +8,20 @@
 
 1. **Loads yesterday's cookies** from Apify input
 2. **Injects cookies** into browser session
-3. **Navigates to Manheim** homepage
-4. **Opens MMR tool** to trigger cookie refresh
-5. **Navigates back to Manheim homepage** (ensures full cookie refresh across domains)
-6. **Hard refresh (Ctrl+F5)** to force server to issue fresh cookies
-7. **Simulates human activity** (mouse movements, scrolling, delays)
-8. **Extracts 4 fresh cookies**:
+3. **Navigates to Manheim** homepage (https://site.manheim.com/)
+4. **Waits for MMR button** to be visible (header hydration)
+5. **Extracts MMR URL** from button (preserves SSO params)
+6. **Navigates to MMR tool** using extracted URL
+7. **Navigates back to Manheim homepage** (ensures full cookie refresh)
+8. **Hard refresh (Ctrl+F5)** to force server to issue fresh cookies
+9. **Simulates human activity** (mouse movements, scrolling, delays)
+10. **Extracts 4 fresh cookies**:
    - `_cl` from `.manheim.com`
    - `SESSION` from `.manheim.com`
    - `session` from `mcom-header-footer.manheim.com`
    - `session.sig` from `mcom-header-footer.manheim.com`
-9. **Sends cookies to webhook** (n8n)
-10. **Saves backup** to Apify key-value store
+11. **Sends cookies to webhook** (n8n)
+12. **Saves backup** to Apify key-value store
 
 ---
 
